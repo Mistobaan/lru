@@ -30,8 +30,7 @@ func DefaultHashFunc(key string) uint {
 	return 0
 }
 
-func NewLruCache() *Cache {
-	var size uint = 1
+func NewLruCache(size uint) *Cache {
 	return &Cache{
 		table:    make([]*item, size),
 		head:     nil,
@@ -141,6 +140,7 @@ func (c *Cache) Set(key string, value interface{}) error {
 	return nil
 }
 
+// Get Gets the latest value of key if available. Otherwise it returns nil
 func (c *Cache) Get(key string) interface{} {
 	if c.capacity == 0 {
 		return nil
@@ -160,6 +160,7 @@ func (c *Cache) Get(key string) interface{} {
 	return item.value
 }
 
+// Del Deletes a key from the cache. no action is taken if the key is not found .
 func (c *Cache) Del(key string) {
 	idx := c.hash(key)
 	it := c.table[idx]
