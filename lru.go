@@ -6,7 +6,6 @@ import (
 
 // - allow to specify an hash_function
 // - allow to resize the cache
-//
 
 type item struct {
 	next  *item
@@ -15,27 +14,19 @@ type item struct {
 	value interface{}
 }
 
-type HashFunc func(string) uint
-
 type Cache struct {
-	table    []*item
+	table    map[string]*item
 	head     *item
 	tail     *item
-	hash     HashFunc
 	free     uint
 	capacity uint
 }
 
-func DefaultHashFunc(key string) uint {
-	return 0
-}
-
 func NewLruCache(size uint) *Cache {
 	return &Cache{
-		table:    make([]*item, size),
+		table:    make(map[string]*item),
 		head:     nil,
 		tail:     nil,
-		hash:     DefaultHashFunc,
 		free:     size,
 		capacity: size,
 	}
@@ -104,19 +95,18 @@ func (c *Cache) pop(it *item) {
 }
 
 func (c *Cache) Set(key string, value interface{}) error {
-	idx := c.hash(key)
 	// this does not work if capacity is zero
 	if c.capacity == 0 {
 		return fmt.Errorf("Can't set to a zero capacity")
 	}
 
 	if c.free < 1 {
-		c.table[c.hash(c.tail.key)] = nil
+		c.table[c.tail.key] = nil
 		c.pop_tail()
 		c.free += 1
 	}
 
-	it := c.table[idx]
+	it := c.table[key]
 
 	if nil == it {
 		it = &item{
@@ -125,14 +115,14 @@ func (c *Cache) Set(key string, value interface{}) error {
 			next:  nil,
 			prev:  nil,
 		}
-		c.table[idx] = it
+		c.table[key] = it
 		if c.head == nil {
 			c.head = it
 			c.tail = c.head
 		}
 		c.free -= 1
 	} else {
-		c.table[idx].value = value
+		c.table[key].value = value
 	}
 
 	c.push_front(it)
@@ -146,8 +136,7 @@ func (c *Cache) Get(key string) interface{} {
 		return nil
 	}
 
-	idx := c.hash(key)
-	item := c.table[idx]
+	item := c.table[key]
 	if nil == item {
 		return nil
 	} else if item.key != key {
@@ -162,12 +151,11 @@ func (c *Cache) Get(key string) interface{} {
 
 // Del Deletes a key from the cache. no action is taken if the key is not found .
 func (c *Cache) Del(key string) {
-	idx := c.hash(key)
-	it := c.table[idx]
+	it := c.table[key]
 	if it == nil {
 		return
 	}
 	c.pop(it)
 	c.free += 1
-	c.table[idx] = nil
+	c.table[key] = nil
 }
