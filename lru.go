@@ -91,22 +91,27 @@ func (c *Cache) Set(key string, value interface{}) error {
 		c.free += 1
 	}
 
-	if c.table[idx] == nil {
-		it := &item{
+	c.free -= 1
+	it := c.table[idx]
+
+	if nil == it {
+		it = &item{
 			value: value,
 			key:   key,
 			next:  nil,
 			prev:  nil,
 		}
 		c.table[idx] = it
-		c.free -= 1
 		if c.head == nil {
 			c.head = it
 			c.tail = c.head
-		} else {
-			c.push_front(it)
 		}
+	} else {
+		c.table[idx].value = value
 	}
+
+	c.push_front(it)
+
 	return nil
 }
 
