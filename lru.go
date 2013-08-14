@@ -160,3 +160,8 @@ func (c *Cache) Del(key string) {
 	c.free += 1
 	c.table[key] = nil
 }
+
+// Len returns the number of items in the cache
+func (c *Cache) Len() uint {
+	return c.capacity - c.free
+}
