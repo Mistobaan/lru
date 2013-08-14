@@ -4,8 +4,21 @@ import (
 	"testing"
 )
 
-func TestGet(t *testing.T) {
-	// TODO: Get from empty
+
+// states of cache:
+// empty, one, multiple, max
+type Case struct {
+	Name string
+	InitialState []interface{}
+	Result []struct {
+		key string
+		value interface{}
+	}
+	Message string
+}
+
+
+func TestGetEmpty(t *testing.T) {
 	cache := NewLruCache()
 	result := cache.Get("invalid")
 	if result != nil {
@@ -13,8 +26,7 @@ func TestGet(t *testing.T) {
 	}
 }
 
-
-func TestSet(t *testing.T) {
+func TestSetEmpty(t *testing.T) {
 	cache := NewLruCache()
 	exp := 1000
 	result := cache.Set("key", exp)
