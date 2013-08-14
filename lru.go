@@ -7,15 +7,18 @@ import (
 // - allow to specify an hash_function
 // - allow to resize the cache
 
+// A Key may be any value that is comparable. See http://golang.org/ref/spec#Comparison_operators
+type Key interface{}
+
 type item struct {
 	next  *item
 	prev  *item
-	key   string
+	key   Key
 	value interface{}
 }
 
 type Cache struct {
-	table    map[string]*item
+	table    map[Key]*item
 	head     *item
 	tail     *item
 	free     uint
@@ -25,7 +28,7 @@ type Cache struct {
 // NewLruCache creates a cache that will keep only the last `size` element in memory
 func NewLruCache(size uint) *Cache {
 	return &Cache{
-		table:    make(map[string]*item),
+		table:    make(map[Key]*item),
 		head:     nil,
 		tail:     nil,
 		free:     size,
@@ -95,21 +98,21 @@ func (c *Cache) pop(it *item) {
 	}
 }
 
-func (c *Cache) Set(key string, value interface{}) error {
+func (c *Cache) Set(key, value interface{}) error {
 	// this does not work if capacity is zero
 	if c.capacity == 0 {
 		return fmt.Errorf("Can't set to a zero capacity")
 	}
 
 	if c.free < 1 {
-		c.table[c.tail.key] = nil
+		delete(c.table, c.tail.key)
 		c.pop_tail()
 		c.free += 1
 	}
 
-	it := c.table[key]
+	it, ok := c.table[key]
 
-	if nil == it {
+	if !ok {
 		it = &item{
 			value: value,
 			key:   key,
@@ -123,7 +126,7 @@ func (c *Cache) Set(key string, value interface{}) error {
 		}
 		c.free -= 1
 	} else {
-		c.table[key].value = value
+		it.value = value
 	}
 
 	c.push_front(it)
@@ -131,34 +134,31 @@ func (c *Cache) Set(key string, value interface{}) error {
 	return nil
 }
 
-// Get Gets the latest value of key if available. Otherwise it returns nil
-func (c *Cache) Get(key string) interface{} {
+// Get Gets the latest value of key if available.
+func (c *Cache) Get(key interface{}) (interface{}, bool) {
 	if c.capacity == 0 {
-		return nil
+		return nil, false
 	}
 
-	item := c.table[key]
-	if nil == item {
-		return nil
-	} else if item.key != key {
-		// same position but different keys
-		return nil
+	item, ok := c.table[key]
+	if !ok {
+		return nil, false
 	}
 
 	c.push_front(item)
 
-	return item.value
+	return item.value, true
 }
 
 // Del Deletes a key from the cache. no action is taken if the key is not found .
-func (c *Cache) Del(key string) {
-	it := c.table[key]
-	if it == nil {
+func (c *Cache) Del(key interface{}) {
+	it, ok := c.table[key]
+	if !ok {
 		return
 	}
 	c.pop(it)
 	c.free += 1
-	c.table[key] = nil
+	delete(c.table, key)
 }
 
 // Len returns the number of items in the cache

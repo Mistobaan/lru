@@ -18,9 +18,9 @@ type Case struct {
 
 func TestGetEmpty(t *testing.T) {
 	cache := NewLruCache(1)
-	result := cache.Get("invalid")
-	if result != nil {
-		t.Error("nil expected")
+	_, ok := cache.Get("invalid")
+	if ok {
+		t.Error("expected false")
 	}
 }
 
@@ -31,7 +31,7 @@ func TestSetEmpty(t *testing.T) {
 	if result != nil {
 		t.Error("nil expected")
 	}
-	value := cache.Get("key")
+	value,_ := cache.Get("key")
 	if value != exp {
 		t.Errorf("Expected %v got %v", exp, value)
 	}
@@ -41,7 +41,8 @@ func TestSetTwiceSameKey(t *testing.T) {
 	cache := NewLruCache(1)
 	cache.Set("same", 1000)
 	cache.Set("same", 2000)
-	if cache.Get("same") != 2000 {
+	item, ok := cache.Get("same")
+	if !ok || item != 2000 {
 		t.Error("invalid should be 2000")
 	}
 }
@@ -50,10 +51,12 @@ func TestSetTwoWithOneLimit(t *testing.T) {
 	cache := NewLruCache(1)
 	cache.Set("first", 1000)
 	cache.Set("second", 2000)
-	if cache.Get("first") != nil {
+	item, _ := cache.Get("first")
+	if item != nil {
 		t.Error("invalid should be nil got: ")
 	}
-	if cache.Get("second") != 2000 {
+	item, _ = cache.Get("second")
+	if item != 2000 {
 		t.Error("invalid should be 2000")
 	}
 }
@@ -67,9 +70,7 @@ func TestSetAndDelete(t *testing.T) {
 	cache := NewLruCache(1)
 	cache.Set("k", 0)
 	cache.Del("k")
-	if cache.Get("k") != nil {
+	if item,_ := cache.Get("k"); item != nil {
 		t.Fail()
 	}
 }
-
-
