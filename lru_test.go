@@ -5,7 +5,6 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	// TODO: 0 should be an error
 	// TODO: Get from empty
 	cache := NewLruCache()
 	result := cache.Get("invalid")
@@ -17,8 +16,13 @@ func TestGet(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	cache := NewLruCache()
-	result := cache.Set("key", 0)
+	exp := 1000
+	result := cache.Set("key", exp)
 	if result != nil {
 		t.Error("nil expected")
+	}
+	value := cache.Get("key")
+	if value != exp {
+		t.Errorf("Expected %v got %v", exp, value)
 	}
 }

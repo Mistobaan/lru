@@ -38,6 +38,7 @@ func (c *Cache) Set(key string, value interface{}) error {
 }
 
 func (c *Cache) Get(key string) interface{} {
-	return nil
+	idx := c.hash(key)
+	return c.table[idx]
 }
 
