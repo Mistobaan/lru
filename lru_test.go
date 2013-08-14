@@ -13,3 +13,12 @@ func TestGet(t *testing.T) {
 		t.Error("nil expected")
 	}
 }
+
+
+func TestSet(t *testing.T) {
+	cache := NewLruCache()
+	result := cache.Set("key", 0)
+	if result != nil {
+		t.Error("nil expected")
+	}
+}
