@@ -5,7 +5,8 @@ import (
 	"fmt"
 )
 
-// - allow to specify an hash_function
+// TODO:
+// - add a perfect hash function
 // - allow to resize the cache
 
 // A Key may be any value that is comparable. See http://golang.org/ref/spec#Comparison_operators
@@ -47,12 +48,12 @@ func (m defaultMapper) DelItem(k Key) {
 	delete(m, k)
 }
 
-// NewLruCache creates a cache that will keep only the last `size` element in memory
+// New creates a cache that will keep only the last `size` element in memory. As mapper it uses a standard map[Key]*item
 func New(size uint) *Cache {
 	return NewWithMapper(size, &defaultMapper{})
 }
 
-// NewLruCache creates a cache that will keep only the last `size` element in memory.
+// NewWithMapper creates a cache that will keep only the last `size` element in memory and will use the provided mapper
 func NewWithMapper(size uint, mapper Mapper) *Cache {
 	return &Cache{
 		table:   mapper,
