@@ -22,6 +22,7 @@ type Cache struct {
 	capacity uint
 }
 
+// NewLruCache creates a cache that will keep only the last `size` element in memory
 func NewLruCache(size uint) *Cache {
 	return &Cache{
 		table:    make(map[string]*item),
