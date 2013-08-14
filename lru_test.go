@@ -4,19 +4,17 @@ import (
 	"testing"
 )
 
-
 // states of cache:
 // empty, one, multiple, max
 type Case struct {
-	Name string
+	Name         string
 	InitialState []interface{}
-	Result []struct {
-		key string
+	Result       []struct {
+		key   string
 		value interface{}
 	}
 	Message string
 }
-
 
 func TestGetEmpty(t *testing.T) {
 	cache := NewLruCache()
@@ -36,5 +34,17 @@ func TestSetEmpty(t *testing.T) {
 	value := cache.Get("key")
 	if value != exp {
 		t.Errorf("Expected %v got %v", exp, value)
+	}
+}
+
+func TestSetTwoWithOneLimit(t *testing.T) {
+	cache := NewLruCache()
+	cache.Set("first", 1000)
+	cache.Set("second", 2000)
+	if cache.Get("first") != nil {
+		t.Error("invalid should be nil got: ", )
+	}
+	if cache.Get("second") != 2000 {
+		t.Error("invalid should be 2000")
 	}
 }
