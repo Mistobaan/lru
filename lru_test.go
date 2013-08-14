@@ -44,7 +44,6 @@ func TestSetTwiceSameKey(t *testing.T) {
 	if cache.Get("same") != 2000 {
 		t.Error("invalid should be 2000")
 	}
-
 }
 
 func TestSetTwoWithOneLimit(t *testing.T) {
@@ -56,5 +55,19 @@ func TestSetTwoWithOneLimit(t *testing.T) {
 	}
 	if cache.Get("second") != 2000 {
 		t.Error("invalid should be 2000")
+	}
+}
+
+func TestDeleteInvalidKey(t *testing.T) {
+	cache := NewLruCache()
+	cache.Del("invalid")
+}
+
+func TestSetAndDelete(t *testing.T) {
+	cache := NewLruCache()
+	cache.Set("k", 0)
+	cache.Del("k")
+	if cache.Get("k") != nil {
+		t.Fail()
 	}
 }

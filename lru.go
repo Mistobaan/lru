@@ -58,16 +58,24 @@ func (c *Cache) push_front(it *item) {
 		C.prev = A
 	}
 	it.next = c.head
+	c.head.prev = it
 	it.prev = nil
 	c.head = it
 }
 
 func (c *Cache) pop_tail() {
 	tail := c.tail
-	if c.head == c.tail {
+
+	// tail == c.head then is the only item
+	if c.head == tail {
 		c.head = nil
+		c.tail = nil
 	}
 
+	// there is at least one element
+	// head -> a
+	//         |
+	// tail -> b
 	if tail != nil {
 		// a -> tail
 		a := tail.prev
@@ -75,6 +83,24 @@ func (c *Cache) pop_tail() {
 			a.next = nil
 		}
 		c.tail = a
+	}
+}
+
+func (c *Cache) pop(it *item) {
+	if it == c.tail {
+		c.pop_tail()
+	} else if it == c.head {
+		// Head -> it ->  a
+		c.head = it.next
+		if c.head != nil {
+			c.head.prev = nil
+		}
+	} else {
+		// A -> B -> C: remove B
+		A := it.prev
+		C := it.next
+		A.next = C
+		C.prev = A
 	}
 }
 
@@ -91,7 +117,6 @@ func (c *Cache) Set(key string, value interface{}) error {
 		c.free += 1
 	}
 
-	c.free -= 1
 	it := c.table[idx]
 
 	if nil == it {
@@ -106,6 +131,7 @@ func (c *Cache) Set(key string, value interface{}) error {
 			c.head = it
 			c.tail = c.head
 		}
+		c.free -= 1
 	} else {
 		c.table[idx].value = value
 	}
@@ -135,4 +161,12 @@ func (c *Cache) Get(key string) interface{} {
 }
 
 func (c *Cache) Del(key string) {
+	idx := c.hash(key)
+	it := c.table[idx]
+	if it == nil {
+		return
+	}
+	c.pop(it)
+	c.free += 1
+	c.table[idx] = nil
 }
