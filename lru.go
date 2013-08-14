@@ -1,3 +1,4 @@
+// Package lru implements an LRU cache.
 package lru
 
 import (
@@ -26,7 +27,7 @@ type Cache struct {
 }
 
 // NewLruCache creates a cache that will keep only the last `size` element in memory
-func NewLruCache(size uint) *Cache {
+func New(size uint) *Cache {
 	return &Cache{
 		table:    make(map[Key]*item),
 		head:     nil,
