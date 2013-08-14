@@ -2,8 +2,7 @@ package lru
 
 // - allow to specify an hash_function
 // - allow to resize the cache
-// 
-
+//
 
 type item struct {
 	next  *item
@@ -24,10 +23,25 @@ func DefaultHashFunc(key string) uint {
 	return 0
 }
 
-func push_front(item *item){
-
+func (c *Cache) push_front(it *item) {
+	// assuming item != null
+	if it == c.head {
+		// item already in front
+		return
+	} else if it == c.tail {
+		c.tail = it.prev
+		c.tail.next = nil
+	} else {
+		// A -> B -> C: remove B
+		A := it.prev
+		C := it.next
+		A.next = C
+		C.prev = A
+	}
+	it.next = c.head
+	it.prev = nil
+	c.head = it
 }
-
 
 func NewLruCache() *Cache {
 	return &Cache{
@@ -44,6 +58,9 @@ func (c *Cache) Set(key string, value interface{}) error {
 		c.table[idx] = &item{
 			value: value,
 		}
+		if c.head == nil {
+			c.head = c.table[idx]
+		}
 	}
 	return nil
 }
@@ -55,7 +72,7 @@ func (c *Cache) Get(key string) interface{} {
 		return nil
 	}
 
-	push_front(item)
+	c.push_front(item)
 
 	return item.value
 }
