@@ -125,6 +125,7 @@ func (c *Cache) pop(it *Item) {
 	}
 }
 
+// Set sets a value in the cache.
 func (c *Cache) Set(key, value interface{}) error {
 	// this does not work if capacity is zero
 	if c.capacity == 0 {
