@@ -11,25 +11,51 @@ import (
 // A Key may be any value that is comparable. See http://golang.org/ref/spec#Comparison_operators
 type Key interface{}
 
-type item struct {
-	next  *item
-	prev  *item
+type Item struct {
+	next  *Item
+	prev  *Item
 	key   Key
 	value interface{}
 }
 
 type Cache struct {
-	table    map[Key]*item
-	head     *item
-	tail     *item
+	table   Mapper
+	head     *Item
+	tail     *Item
 	free     uint
 	capacity uint
 }
 
+type Mapper interface {
+	GetItem(Key) (*Item, bool)
+	SetItem(Key, *Item)
+	DelItem(Key)
+}
+
+type defaultMapper map[Key]*Item
+
+func (m defaultMapper) GetItem(k Key) (*Item, bool) {
+	item, ok := m[k]
+	return item, ok
+}
+
+func (m defaultMapper) SetItem(k Key, value *Item) {
+	m[k] = value
+}
+
+func (m defaultMapper) DelItem(k Key) {
+	delete(m, k)
+}
+
 // NewLruCache creates a cache that will keep only the last `size` element in memory
 func New(size uint) *Cache {
+	return NewWithMapper(size, &defaultMapper{})
+}
+
+// NewLruCache creates a cache that will keep only the last `size` element in memory.
+func NewWithMapper(size uint, mapper Mapper) *Cache {
 	return &Cache{
-		table:    make(map[Key]*item),
+		table:   mapper,
 		head:     nil,
 		tail:     nil,
 		free:     size,
@@ -37,7 +63,7 @@ func New(size uint) *Cache {
 	}
 }
 
-func (c *Cache) push_front(it *item) {
+func (c *Cache) push_front(it *Item) {
 	// assuming item != null
 	if it == c.head {
 		// item already in front
@@ -81,7 +107,7 @@ func (c *Cache) pop_tail() {
 	}
 }
 
-func (c *Cache) pop(it *item) {
+func (c *Cache) pop(it *Item) {
 	if it == c.tail {
 		c.pop_tail()
 	} else if it == c.head {
@@ -106,21 +132,21 @@ func (c *Cache) Set(key, value interface{}) error {
 	}
 
 	if c.free < 1 {
-		delete(c.table, c.tail.key)
+		c.table.DelItem(c.tail.key)
 		c.pop_tail()
 		c.free += 1
 	}
 
-	it, ok := c.table[key]
+	it, ok := c.table.GetItem(key)
 
 	if !ok {
-		it = &item{
+		it = &Item{
 			value: value,
 			key:   key,
 			next:  nil,
 			prev:  nil,
 		}
-		c.table[key] = it
+		c.table.SetItem(key, it)
 		if c.head == nil {
 			c.head = it
 			c.tail = c.head
@@ -141,7 +167,7 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 		return nil, false
 	}
 
-	item, ok := c.table[key]
+	item, ok := c.table.GetItem(key)
 	if !ok {
 		return nil, false
 	}
@@ -153,13 +179,13 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 
 // Del Deletes a key from the cache. no action is taken if the key is not found .
 func (c *Cache) Del(key interface{}) {
-	it, ok := c.table[key]
+	it, ok := c.table.GetItem(key)
 	if !ok {
 		return
 	}
 	c.pop(it)
 	c.free += 1
-	delete(c.table, key)
+	c.table.DelItem(key)
 }
 
 // Len returns the number of items in the cache

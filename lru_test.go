@@ -4,18 +4,6 @@ import (
 	"testing"
 )
 
-// states of cache:
-// empty, one, multiple, max
-type Case struct {
-	Name         string
-	InitialState []interface{}
-	Result       []struct {
-		key   string
-		value interface{}
-	}
-	Message string
-}
-
 func TestGetEmpty(t *testing.T) {
 	cache := New(1)
 	_, ok := cache.Get("invalid")
