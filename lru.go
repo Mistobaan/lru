@@ -25,6 +25,7 @@ type Cache struct {
 	tail     *Item
 	free     uint
 	capacity uint
+	item_pool *Item
 }
 
 type Mapper interface {
@@ -33,24 +34,25 @@ type Mapper interface {
 	DelItem(Key)
 }
 
-type defaultMapper map[Key]*Item
+// Default Mapper
+type DefaultMapper map[Key]*Item
 
-func (m defaultMapper) GetItem(k Key) (*Item, bool) {
+func (m DefaultMapper) GetItem(k Key) (*Item, bool) {
 	item, ok := m[k]
 	return item, ok
 }
 
-func (m defaultMapper) SetItem(k Key, value *Item) {
+func (m DefaultMapper) SetItem(k Key, value *Item) {
 	m[k] = value
 }
 
-func (m defaultMapper) DelItem(k Key) {
+func (m DefaultMapper) DelItem(k Key) {
 	delete(m, k)
 }
 
 // New creates a cache that will keep only the last `size` element in memory. As mapper it uses a standard map[Key]*item
 func New(size uint) *Cache {
-	return NewWithMapper(size, &defaultMapper{})
+	return NewWithMapper(size, &DefaultMapper{})
 }
 
 // NewWithMapper creates a cache that will keep only the last `size` element in memory and will use the provided mapper
@@ -61,6 +63,7 @@ func NewWithMapper(size uint, mapper Mapper) *Cache {
 		tail:     nil,
 		free:     size,
 		capacity: size,
+		item_pool: nil,
 	}
 }
 
@@ -87,6 +90,7 @@ func (c *Cache) push_front(it *Item) {
 
 func (c *Cache) pop_tail() {
 	tail := c.tail
+	it := tail
 
 	// tail == c.head then is the only item
 	if c.head == tail {
@@ -106,6 +110,33 @@ func (c *Cache) pop_tail() {
 		}
 		c.tail = a
 	}
+	c.delItem(it)
+}
+
+func (c *Cache) newItem(key, value interface{}) *Item {
+	if c.item_pool == nil {
+		return &Item{
+			key:   key,
+			value: value,
+			next:  nil,
+			prev:  nil,
+		}
+	} else {
+		r := c.item_pool
+		c.item_pool = r.next
+		r.key = key
+		r.value = value
+		return r
+	}
+}
+
+func (c *Cache) delItem(it *Item) {
+	a := c.item_pool
+	c.item_pool = it
+	it.next = a
+	it.prev = nil
+	it.value = nil
+	it.key = nil
 }
 
 func (c *Cache) pop(it *Item) {
@@ -117,12 +148,14 @@ func (c *Cache) pop(it *Item) {
 		if c.head != nil {
 			c.head.prev = nil
 		}
+		c.delItem(it)
 	} else {
 		// A -> B -> C: remove B
 		A := it.prev
 		C := it.next
 		A.next = C
 		C.prev = A
+		c.delItem(it)
 	}
 }
 
@@ -142,12 +175,7 @@ func (c *Cache) Set(key, value interface{}) error {
 	it, ok := c.table.GetItem(key)
 
 	if !ok {
-		it = &Item{
-			value: value,
-			key:   key,
-			next:  nil,
-			prev:  nil,
-		}
+		it = c.newItem(key, value)
 		c.table.SetItem(key, it)
 		if c.head == nil {
 			c.head = it

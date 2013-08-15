@@ -19,7 +19,7 @@ func TestSetEmpty(t *testing.T) {
 	if result != nil {
 		t.Error("nil expected")
 	}
-	value,_ := cache.Get("key")
+	value, _ := cache.Get("key")
 	if value != exp {
 		t.Errorf("Expected %v got %v", exp, value)
 	}
@@ -58,10 +58,10 @@ func TestSetAndDelete(t *testing.T) {
 	cache := New(1)
 	cache.Set("k", 0)
 	cache.Del("k")
-	if item,_ := cache.Get("k"); item != nil {
+	if item, _ := cache.Get("k"); item != nil {
 		t.Fail()
 	}
-} 
+}
 
 type simpleStruct struct {
 	int
@@ -114,3 +114,11 @@ func TestRemove(t *testing.T) {
 		t.Fatal("TestRemove returned a removed entry")
 	}
 }
+
+func Benchmark_Insert(b *testing.B) {
+	cache := New(1)
+	for i := 0; i < b.N; i++ {
+		cache.Set(i, i)
+	}
+}
+
