@@ -2,7 +2,6 @@ package lru
 
 import (
 	"bytes"
-	"strconv"
 	"testing"
 )
 
@@ -23,7 +22,7 @@ func TestSetEmpty(t *testing.T) {
 	value, ok := cache.Get("key")
 
 	if !ok || !bytes.Equal(value, exp) {
-		t.Errorf("Expected %v got %v %v", exp, value, cache.table)
+		t.Errorf("Expected %v got %v %v", exp, value)
 	}
 }
 
@@ -131,26 +130,3 @@ func TestRemove(t *testing.T) {
 	}
 }
 */
-
-func Benchmark_Insert(b *testing.B) {
-	cache := NewCache(1024 * 10)
-
-	for i := 0; i < b.N; i++ {
-		key := strconv.Itoa(i)
-		cache.Set(key, []byte{0x0, 0x0, 0x0, 0x0})
-	}
-}
-
-func Benchmark_Fetch(b *testing.B) {
-	cache := NewCache(1024 * 10)
-
-	for i := 0; i < 1000; i++ {
-		key := strconv.Itoa(i)
-		cache.Set(key, []byte{0x0, 0x0, 0x0, 0x0})
-	}
-
-	for i := 0; i < b.N; i++ {
-		key := strconv.Itoa(i % 1000)
-		cache.Get(key)
-	}
-}
