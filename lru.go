@@ -1,4 +1,4 @@
-// Package lru implements a high efficient LRU cache that stores map[string][]byte and with expiration date
+// Package lru implements a high efficient LRU cache that stores map[string][]byte with an expiration date
 package lru
 
 import (
@@ -18,17 +18,31 @@ type Item struct {
 	expiresIn  time.Duration
 }
 
+// http://stackoverflow.com/questions/98153/whats-the-best-hashing-algorithm-to-use-on-a-stl-string-when-using-hash-map/107657#107657
+func hash(key []byte) uint32 {
+	h := uint32(0)
+	for i := 0; i < len(key); i++ {
+		h = h*101 + uint32(key[i])
+	}
+	return h
+}
+
+type partition struct {
+	sync.RWMutex
+	m map[string]*Item
+}
+
+const partCount = 64
+
 // Cache is a typical LRU cache implementation. When an element is
 // accessed it is promoted to the head of the list, and when space is
 // needed the element at the tail of the list (the least recently used
 // element) is evicted.
 type Cache struct {
-	mu sync.Mutex
+	sync.Mutex
 
 	head *Item
 	tail *Item
-
-	table map[string]*Item
 
 	size     int64
 	capacity int64
@@ -37,15 +51,22 @@ type Cache struct {
 
 	// don't thrash the allocated items
 	pool *Item
+
+	m [partCount]partition
 }
 
 // NewCache creates a cache that will keep only the last `size` element in memory. As mapper it uses a standard map[Key]*item
 // The default expiration  is 60 second
 func NewCache(capacity int64) *Cache {
+	partArray := [partCount]partition{}
+	for i := 0; i < partCount; i++ {
+		partArray[i].m = make(map[string]*Item)
+	}
+
 	return &Cache{
 		head:              nil,
 		tail:              nil,
-		table:             make(map[string]*Item),
+		m:                 partArray,
 		size:              0,
 		capacity:          capacity,
 		defaultExpiration: 60 * time.Second,
@@ -53,46 +74,55 @@ func NewCache(capacity int64) *Cache {
 	}
 }
 
-// Set sets a value in the cache.
+// Set sets a value in the cache with the default expiration
 func (c *Cache) Set(key string, value []byte) {
 	c.SetExpire(key, value, c.defaultExpiration)
 }
 
 // SetExpire sets a key and when it would expire
-func (c *Cache) SetExpire(key string, value []byte, expiration time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	item, ok := c.table[key]
+func (c *Cache) SetExpire(k string, value []byte, expiration time.Duration) {
+	idx := hash([]byte(k)) % partCount
+	part := &c.m[idx]
+	part.Lock()
+	item, ok := part.m[k]
+	part.Unlock()
 	if !ok {
-		c.addNew(key, value, expiration)
+		c.addNew(k, value, expiration)
 	} else {
-		c.updateInPlace(item, key, value, expiration)
+		c.updateInPlace(item, k, value, expiration)
 	}
 }
 
-// Get Gets the latest value of key if available.
-func (c *Cache) Get(key string) ([]byte, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// Get gets the latest value of key if available.
+func (c *Cache) Get(k string) ([]byte, bool) {
 
-	item, ok := c.table[key]
+	idx := hash([]byte(k)) % partCount
+	part := &c.m[idx]
+	part.RLock()
+	item, ok := part.m[k]
+	part.RUnlock()
+
 	if !ok {
 		return nil, false
 	}
 
+	// check if it is expired
 	if time.Now().After(item.lastAccess.Add(item.expiresIn)) {
-		c.deleteKey(key)
+		c.Lock()
+		c.deleteKey(k)
+		c.Unlock()
 		return nil, false
 	}
 
-	item.lastAccess = time.Now()
-
+	c.Lock()
 	c.pushFront(item)
+	c.Unlock()
 	return item.value, true
 }
 
 func (c *Cache) pushFront(item *Item) {
+	item.lastAccess = time.Now()
+
 	// assuming item != null
 	if item == c.head {
 		// item already in front
@@ -149,6 +179,7 @@ func (c *Cache) newItem(key string, value []byte) *Item {
 	return r
 }
 
+// deleteItem resets the item mememory and puts it back in the local item pool
 func (c *Cache) deleteItem(item *Item) {
 	a := c.pool
 	c.pool = item
@@ -160,14 +191,18 @@ func (c *Cache) deleteItem(item *Item) {
 }
 
 // internal delete only. Use with locks
-func (c *Cache) deleteKey(key string) {
-	item, ok := c.table[key]
-	if !ok {
-		return
+func (c *Cache) deleteKey(k string) {
+	idx := hash([]byte(k)) % partCount
+	part := &c.m[idx]
+	part.Lock()
+	item, ok := part.m[k]
+	if ok {
+		delete(part.m, k)
 	}
+	part.Unlock()
+
 	c.pop(item)
 	c.deleteItem(item)
-	delete(c.table, key)
 }
 
 func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {
@@ -184,7 +219,14 @@ func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {
 	item.expiresIn = expiration
 	item.lastAccess = time.Now()
 
-	c.table[key] = item
+	idx := hash([]byte(key)) % partCount
+	part := &c.m[idx]
+	part.Lock()
+	part.m[key] = item
+	part.Unlock()
+
+	valueSize := int64(cap(value))
+	c.size += valueSize
 
 	c.checkCapacity()
 }
@@ -212,9 +254,9 @@ func (c *Cache) checkCapacity() {
 
 // Delete Deletes a key from the cache. no action is taken if the key is not found .
 func (c *Cache) Delete(key string) {
-	c.mu.Lock()
+	c.Lock()
 	c.deleteKey(key)
-	c.mu.Unlock()
+	c.Unlock()
 }
 
 // Size returns the number of items in the cache
