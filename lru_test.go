@@ -2,6 +2,8 @@ package lru
 
 import (
 	"bytes"
+	"strconv"
+	"sync"
 	"testing"
 )
 
@@ -45,23 +47,19 @@ func TestSetTwiceSameKey(t *testing.T) {
 	}
 }
 
-func TestSetTwoWithOneLimit(t *testing.T) {
-	t.Parallel()
+func TestConcurrentAccess(t *testing.T) {
 	cache := NewCache(1024 * 10)
+	var wg sync.WaitGroup
 
-	exp := []byte{0xFF}
-	exp2 := []byte{0xFE}
+	for i := 0; i < 1000; i += 1 {
+		wg.Add(i)
+		go func() {
+			defer wg.Done()
+			cache.Set(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+		}()
+	}
 
-	cache.Set("first", exp)
-	cache.Set("second", exp2)
-	item, _ := cache.Get("first")
-	if item != nil {
-		t.Error("invalid should be nil got: ")
-	}
-	item, _ = cache.Get("second")
-	if !bytes.Equal(item, exp2) {
-		t.Error("invalid should be 2000")
-	}
+	wg.Wait()
 }
 
 func TestDeleteInvalidKey(t *testing.T) {

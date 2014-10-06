@@ -139,6 +139,9 @@ func (c *Cache) pushFront(item *Item) {
 
 // pop removes the item from the list
 func (c *Cache) pop(it *Item) {
+	if it == nil {
+		panic("pop nil item")
+	}
 	// A -> it -> C: remove B
 	if it == c.head {
 		c.head = it.next
@@ -198,11 +201,10 @@ func (c *Cache) deleteKey(k string) {
 	item, ok := part.m[k]
 	if ok {
 		delete(part.m, k)
+		c.pop(item)
+		c.deleteItem(item)
 	}
 	part.Unlock()
-
-	c.pop(item)
-	c.deleteItem(item)
 }
 
 func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {

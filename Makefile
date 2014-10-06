@@ -4,6 +4,14 @@ test: *.go
 	go test -race .
 
 bench: *.go
+	go test -coverprofile=coverage.out .
+	go tool cover -func=coverage.out
+	go tool cover -html=coverage.html
+
+	go test -covermode=count -coverprofile=count.out .
+	go tool cover -func=count.out
+	go tool cover -html=count.html
+
 	# no bugs
 	go test -race -run=none -bench=BenchmarkGet .
 
@@ -21,3 +29,4 @@ bench: *.go
 	# blocking profile
 	go test -run=none -bench=BenchmarkGet -blockprofile=blockprof -blockprofilerate=1 .
 	go tool pprof --text --lines lru.test blockprof
+
