@@ -2,6 +2,8 @@ package lru
 
 import (
 	"bytes"
+	"math/rand"
+	"runtime"
 	"strconv"
 	"sync"
 	"testing"
@@ -47,15 +49,21 @@ func TestSetTwiceSameKey(t *testing.T) {
 	}
 }
 
-func TestConcurrentAccess(t *testing.T) {
+func TestFuzzyConcurrentAccess(t *testing.T) {
 	cache := NewCache(1024 * 10)
 	var wg sync.WaitGroup
 
-	for i := 0; i < 1000; i += 1 {
-		wg.Add(i)
+	for i := 0; i < 10; i += 1 {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cache.Set(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+			for i := 0; i < 1000; i += 1 {
+				cache.Set(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+				runtime.Gosched()
+				cache.Delete(strconv.Itoa(rand.Intn(1000)))
+				runtime.Gosched()
+				cache.Get(strconv.Itoa(rand.Intn(1000)))
+			}
 		}()
 	}
 

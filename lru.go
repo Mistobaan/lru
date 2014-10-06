@@ -81,16 +81,18 @@ func (c *Cache) Set(key string, value []byte) {
 
 // SetExpire sets a key and when it would expire
 func (c *Cache) SetExpire(k string, value []byte, expiration time.Duration) {
+	c.Lock()
 	idx := hash([]byte(k)) % partCount
 	part := &c.m[idx]
 	part.Lock()
 	item, ok := part.m[k]
-	part.Unlock()
 	if !ok {
 		c.addNew(k, value, expiration)
 	} else {
 		c.updateInPlace(item, k, value, expiration)
 	}
+	part.Unlock()
+	c.Unlock()
 }
 
 // Get gets the latest value of key if available.
@@ -100,25 +102,55 @@ func (c *Cache) Get(k string) ([]byte, bool) {
 	part := &c.m[idx]
 	part.RLock()
 	item, ok := part.m[k]
-	part.RUnlock()
 
 	if !ok {
+		part.RUnlock()
 		return nil, false
 	}
 
 	// check if it is expired
 	if time.Now().After(item.lastAccess.Add(item.expiresIn)) {
+		part.RUnlock()
 		c.Lock()
+		part.Lock()
 		c.deleteKey(k)
+		part.Unlock()
 		c.Unlock()
 		return nil, false
 	}
 
+	part.RUnlock()
 	c.Lock()
+	part.Lock()
 	c.pushFront(item)
+	part.Unlock()
 	c.Unlock()
-	return item.value, true
+	v := item.value
+	return v, true
 }
+
+// Delete Deletes a key from the cache. no action is taken if the key is not found .
+func (c *Cache) Delete(key string) {
+	c.Lock()
+	idx := hash([]byte(key)) % partCount
+	part := &c.m[idx]
+	part.Lock()
+	item, ok := part.m[key]
+	if ok {
+		delete(part.m, key)
+		c.pop(item)
+		c.deleteItem(item)
+	}
+	part.Unlock()
+	c.Unlock()
+}
+
+// Size returns the number of items in the cache
+func (c *Cache) Size() int64 {
+	return c.size
+}
+
+// No Locks for private functions
 
 func (c *Cache) pushFront(item *Item) {
 	item.lastAccess = time.Now()
@@ -197,14 +229,12 @@ func (c *Cache) deleteItem(item *Item) {
 func (c *Cache) deleteKey(k string) {
 	idx := hash([]byte(k)) % partCount
 	part := &c.m[idx]
-	part.Lock()
 	item, ok := part.m[k]
 	if ok {
 		delete(part.m, k)
 		c.pop(item)
 		c.deleteItem(item)
 	}
-	part.Unlock()
 }
 
 func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {
@@ -223,9 +253,8 @@ func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {
 
 	idx := hash([]byte(key)) % partCount
 	part := &c.m[idx]
-	part.Lock()
+
 	part.m[key] = item
-	part.Unlock()
 
 	valueSize := int64(cap(value))
 	c.size += valueSize
@@ -252,16 +281,4 @@ func (c *Cache) checkCapacity() {
 		c.deleteKey(item.key)
 		c.size -= int64(cap(item.value))
 	}
-}
-
-// Delete Deletes a key from the cache. no action is taken if the key is not found .
-func (c *Cache) Delete(key string) {
-	c.Lock()
-	c.deleteKey(key)
-	c.Unlock()
-}
-
-// Size returns the number of items in the cache
-func (c *Cache) Size() int64 {
-	return c.size
 }
