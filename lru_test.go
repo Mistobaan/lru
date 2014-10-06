@@ -50,19 +50,21 @@ func TestSetTwiceSameKey(t *testing.T) {
 }
 
 func TestFuzzyConcurrentAccess(t *testing.T) {
-	cache := NewCache(1024 * 10)
+	cache := NewCache(1024)
 	var wg sync.WaitGroup
 
-	for i := 0; i < 10; i += 1 {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := 0; i < 1000; i += 1 {
-				cache.Set(strconv.Itoa(i), []byte(strconv.Itoa(i)))
+			for i := 0; i < 1024; i++ {
+				bigchunk := make([]byte, 10)
+				cache.SetExpire(strconv.Itoa(i), bigchunk, 0)
 				runtime.Gosched()
 				cache.Delete(strconv.Itoa(rand.Intn(1000)))
 				runtime.Gosched()
 				cache.Get(strconv.Itoa(rand.Intn(1000)))
+				t.Log(cache.Size(), cache.capacity)
 			}
 		}()
 	}

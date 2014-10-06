@@ -1,16 +1,16 @@
 all: bench
 
 test: *.go
-	go test -race .
+	go test -race -v .
 
 bench: *.go
-	go test -coverprofile=coverage.out .
+	go test -coverprofile=coverage.out github.com/Mistobaan/lru
 	go tool cover -func=coverage.out
-	go tool cover -html=coverage.html
+	go tool cover -html=coverage.out
 
-	go test -covermode=count -coverprofile=count.out .
+	go test -covermode=count -coverprofile=count.out github.com/Mistobaan/lru
 	go tool cover -func=count.out
-	go tool cover -html=count.html
+	go tool cover -html=count.out
 
 	# no bugs
 	go test -race -run=none -bench=BenchmarkGet .

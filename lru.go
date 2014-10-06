@@ -3,6 +3,7 @@ package lru
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -81,6 +82,10 @@ func (c *Cache) Set(key string, value []byte) {
 
 // SetExpire sets a key and when it would expire
 func (c *Cache) SetExpire(k string, value []byte, expiration time.Duration) {
+	// prevent from setting a single key that is bigger than the actual cache
+	if int64(cap(value)) > c.capacity {
+		return
+	}
 	c.Lock()
 	idx := hash([]byte(k)) % partCount
 	part := &c.m[idx]
@@ -147,7 +152,7 @@ func (c *Cache) Delete(key string) {
 
 // Size returns the number of items in the cache
 func (c *Cache) Size() int64 {
-	return c.size
+	return atomic.LoadInt64(&c.size)
 }
 
 // No Locks for private functions
@@ -248,6 +253,10 @@ func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {
 		c.head = item
 	}
 
+	if c.tail == nil {
+		c.tail = item
+	}
+
 	item.expiresIn = expiration
 	item.lastAccess = time.Now()
 
@@ -257,7 +266,8 @@ func (c *Cache) addNew(key string, value []byte, expiration time.Duration) {
 	part.m[key] = item
 
 	valueSize := int64(cap(value))
-	c.size += valueSize
+
+	atomic.StoreInt64(&c.size, atomic.AddInt64(&c.size, valueSize))
 
 	c.checkCapacity()
 }
@@ -270,15 +280,19 @@ func (c *Cache) updateInPlace(item *Item, key string, value []byte, expiration t
 	item.lastAccess = time.Now()
 	item.expiresIn = expiration
 
-	c.size += sizeDiff
+	c.size = atomic.AddInt64(&c.size, sizeDiff)
+
 	c.pushFront(item)
 	c.checkCapacity()
 }
 
 func (c *Cache) checkCapacity() {
-	for c.size > c.capacity {
+	for atomic.LoadInt64(&c.size) > c.capacity {
 		item := c.tail
+		if item == nil {
+			break
+		}
 		c.deleteKey(item.key)
-		c.size -= int64(cap(item.value))
+		atomic.StoreInt64(&c.size, atomic.AddInt64(&c.size, int64(cap(item.value))))
 	}
 }
