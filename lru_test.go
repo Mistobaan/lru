@@ -45,8 +45,8 @@ func TestSetTwiceSameKey(t *testing.T) {
 	}
 }
 
-/*
 func TestSetTwoWithOneLimit(t *testing.T) {
+	t.Parallel()
 	cache := NewCache(1024 * 10)
 
 	exp := []byte{0xFF}
@@ -59,7 +59,7 @@ func TestSetTwoWithOneLimit(t *testing.T) {
 		t.Error("invalid should be nil got: ")
 	}
 	item, _ = cache.Get("second")
-	if item != exp2 {
+	if !bytes.Equal(item, exp2) {
 		t.Error("invalid should be 2000")
 	}
 }
@@ -67,7 +67,7 @@ func TestSetTwoWithOneLimit(t *testing.T) {
 func TestDeleteInvalidKey(t *testing.T) {
 	cache := NewCache(1024 * 10)
 
-	cache.Del("invalid")
+	cache.Delete("invalid")
 }
 
 func TestSetAndDelete(t *testing.T) {
@@ -79,58 +79,3 @@ func TestSetAndDelete(t *testing.T) {
 		t.Fail()
 	}
 }
-
-type simpleStruct struct {
-	int
-	string
-}
-
-type complexStruct struct {
-	int
-	simpleStruct
-}
-
-var getTests = []struct {
-	name       string
-	keyToAdd   interface{}
-	keyToGet   interface{}
-	expectedOk bool
-}{
-	{"string_hit", "myKey", "myKey", true},
-	{"string_miss", "myKey", "nonsense", false},
-	{"simple_struct_hit", simpleStruct{1, "two"}, simpleStruct{1, "two"}, true},
-	{"simeple_struct_miss", simpleStruct{1, "two"}, simpleStruct{0, "noway"}, false},
-	{"complex_struct_hit", complexStruct{1, simpleStruct{2, "three"}},
-		complexStruct{1, simpleStruct{2, "three"}}, true},
-}
-
-func TestGet(t *testing.T) {
-	for _, tt := range getTests {
-		cache := NewCache(1024 * 10)
-
-		lru.Set(tt.keyToAdd, 1234)
-		val, ok := lru.Get(tt.keyToGet)
-		if ok != tt.expectedOk {
-			t.Fatalf("%s: cache hit = %v; want %v", tt.name, ok, !ok)
-		} else if ok && val != 1234 {
-			t.Fatalf("%s expected get to return 1234 but got %v", tt.name, val)
-		}
-	}
-}
-
-func TestRemove(t *testing.T) {
-	cache := NewCache(1024 * 10)
-
-	lru.Set("myKey", 1234)
-	if val, ok := lru.Get("myKey"); !ok {
-		t.Fatal("TestRemove returned no match")
-	} else if val != 1234 {
-		t.Fatalf("TestRemove failed.  Expected %d, got %v", 1234, val)
-	}
-
-	lru.Del("myKey")
-	if _, ok := lru.Get("myKey"); ok {
-		t.Fatal("TestRemove returned a removed entry")
-	}
-}
-*/
