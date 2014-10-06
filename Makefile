@@ -1,7 +1,9 @@
 all: bench
 
+test: *.go
+	go test -race .
 
-bench:
+bench: *.go
 	# no bugs
 	go test -race -run=none -bench=BenchmarkGet .
 
@@ -17,5 +19,5 @@ bench:
 	go tool pprof --inuse_objects --text lru.test mprof
 
 	# blocking profile
-	go test --blockprofile -run=none -bench=BenchmarkGet .
-	go tool pprof --text --lines lru.test
+	go test -run=none -bench=BenchmarkGet -blockprofile=blockprof -blockprofilerate=1 .
+	go tool pprof --text --lines lru.test blockprof

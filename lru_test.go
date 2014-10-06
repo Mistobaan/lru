@@ -6,6 +6,7 @@ import (
 )
 
 func TestGetEmpty(t *testing.T) {
+	t.Parallel()
 	cache := NewCache(1024 * 10)
 	_, ok := cache.Get("invalid")
 	if ok {
@@ -14,6 +15,7 @@ func TestGetEmpty(t *testing.T) {
 }
 
 func TestSetEmpty(t *testing.T) {
+	t.Parallel()
 	cache := NewCache(1024 * 10)
 
 	exp := []byte{0xFF}
@@ -27,6 +29,8 @@ func TestSetEmpty(t *testing.T) {
 }
 
 func TestSetTwiceSameKey(t *testing.T) {
+	t.Parallel()
+
 	cache := NewCache(1024 * 10)
 	exp := []byte{0xFF}
 	exp2 := []byte{0xFE}
